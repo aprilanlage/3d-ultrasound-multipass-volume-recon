@@ -8,21 +8,20 @@ bag_name = "C:\Users\april\Desktop\In vivo kidney study 2025\PartID_34\Camera da
 % US
 us_file = "C:\Users\april\Desktop\In vivo kidney study 2025\PartID_34\US_scans\P3KDJDGE";
 
-%b = load('bc_ID34_scan2.mat');
-%bound_coords = b.bound_coords;
-%[frames, times, poses, m_pix, xoffset, yoffset, UStoCam] = read_in('', bag_name, us_file, 'GE_LOGIQE9_curvilinearProbe');
+b = load('C:\Users\april\Desktop\PhD research\CODE\bc_ID34_scan2.mat');
+bound_coords = b.bound_coords;
+[frames, times, poses, m_pix, xoffset, yoffset, UStoCam] = read_in_r('', bag_name, us_file, 'GE_LOGIQE9_curvilinearProbe');
 
 % downsample poses
-% poses_downsampled = zeros(3,4,frames);
-% for slice = 1:(frames-120)
-%     poses_downsampled(:,:,slice) = poses(:, :, times(slice));
-% end
+poses_downsampled = zeros(3,4,frames);
+for slice = 1:(frames-120)
+    poses_downsampled(:,:,slice) = poses(:, :, times(slice));
+end
 
-%passes = pass_detect(poses_downsampled,bound_coords, xoffset, yoffset, UStoCam);
+%passes = pass_detect_r(poses_downsampled,bound_coords, xoffset, yoffset, UStoCam);
+passes = [65 140 NaN 175 260 NaN 305 430 NaN 470 560 NaN 650 800];
 
-plot_skeleton_outline(poses_downsampled, bound_coords, 1:frames, xoffset, yoffset, UStoCam)
-
-%passes = [460 590 NaN 2760 2850 NaN 2910 3040 NaN 3390 3480 NaN 3530 3585 NaN 3770 3910 NaN 4320 4475 NaN 4530 4660 NaN 4710 4830 NaN 5460 5580 NaN 6160 6260];
+plot_skeleton_outline_r(poses_downsampled, bound_coords, passes(1):passes(2), xoffset, yoffset, UStoCam)
 
 %% pass alignment
 % align centers of segmentations
@@ -34,10 +33,10 @@ for i = 1:(length(passes)-1)
         continue
     else
         %disp([passes(i) passes(i+1)])
-        coTemp = surface_recon(poses_downsampled, bound_coords, (passes(i)+5):(passes(i+1)-5), xoffset, yoffset, UStoCam);
+        coTemp = surface_recon_r(poses_downsampled, bound_coords, (passes(i)+5):(passes(i+1)-5), xoffset, yoffset, UStoCam);
         cen = [mean(coTemp(:, 1)), mean(coTemp(:, 2)), mean(coTemp(:, 3))];
         % put everybody at (0,0,0)
-        poses_centered(1:3,4,passes(i):(passes(i+1))) = poses_centered(1:3,4,passes(i):(passes(i+1))) - [cen(1) cen(2) cen(3)]';
+        poses_centered(1:3,4,passes(i):(passes(i+1))) = poses_downsampled(1:3,4,passes(i):(passes(i+1))) - [cen(1) cen(2) cen(3)]';
     end
 end
 
@@ -69,7 +68,7 @@ for c = 1:it
             if isnan(passes(i+1)) || isnan(passes(i))
                 continue
             else
-                coTemp = surface_recon(poses_centered_icp, bound_coords, (passes(i)+1):(passes(i+1)-1), xoffset, yoffset, UStoCam);
+                coTemp = surface_recon_r(poses_centered_icp, bound_coords, (passes(i)+1):(passes(i+1)-1), xoffset, yoffset, UStoCam);
                 % use center of pass segmentations to register
 
                 pass_temp = pointCloud(coTemp(:,1:3));
@@ -92,9 +91,9 @@ for c = 1:it
     z_extent = -0.11:step_size:0.15;
     old_voxel_grid = zeros(length(x_extent),length(y_extent),length(z_extent));
 
-    coTemp = surface_recon(poses, bound_coords, passes(1):passes(2), xoffset, yoffset, UStoCam);
+    coTemp = surface_recon_r(poses, bound_coords, passes(1):passes(2), xoffset, yoffset, UStoCam);
     pass_temp = pointCloud(coTemp(:,1:3));
-    [new_voxels] = shape_variance_unnorm(old_voxel_grid, pass_temp, step_size, x_extent(1), y_extent(1), z_extent(1));
+    [new_voxels] = shape_variance_unnorm_r(old_voxel_grid, pass_temp, step_size, x_extent(1), y_extent(1), z_extent(1));
 
     for pass_num = 2:(num_passes-1)
         % flag to check for breathing spots
@@ -102,9 +101,9 @@ for c = 1:it
             continue
         else
             % add another pass to the variance grid
-            coTemp = surface_recon(poses, bound_coords, (passes(pass_num)+1):(passes(pass_num+1)-1), xoffset, yoffset, UStoCam);
+            coTemp = surface_recon_r(poses, bound_coords, (passes(pass_num)+1):(passes(pass_num+1)-1), xoffset, yoffset, UStoCam);
             pass_temp = pointCloud(coTemp(:,1:3),Intensity=coTemp(:,5));
-            [new_voxels] = shape_variance_unnorm(new_voxels, pass_temp, step_size, x_extent(1), y_extent(1), z_extent(1));
+            [new_voxels] = shape_variance_unnorm_r(new_voxels, pass_temp, step_size, x_extent(1), y_extent(1), z_extent(1));
 
             %threshold
             new_voxels_thres = zeros(size(new_voxels));
@@ -152,7 +151,7 @@ for c = 1:it
 
             % calculate average ring thickness
             % if too thick, erode again
-            th = calc_thickness(peaks);
+            th = calc_thickness_r(peaks);
             if th > 3
                 %disp(th)
                 erodedvol_2 = imerode(erodedvol, se_vol);
@@ -166,7 +165,7 @@ for c = 1:it
                         end
                     end
                 end
-                th = calc_thickness(peaks_new);
+                th = calc_thickness_r(peaks_new);
                 if th < 2
                     % use previous peaks, with one erode
                     peaks = peaks;
@@ -193,9 +192,9 @@ for c = 1:it
 
 
             % find volume
-            [pc, v_convexhull] = find_pc_from_3d(peaks, step_size, x_extent(1), y_extent(1), z_extent(1));
+            [pc, v_convexhull] = find_pc_from_3d_r(peaks, step_size, x_extent(1), y_extent(1), z_extent(1));
             pcwrite(pc,'measure_in_vivo.ply')
-            vol_mesh = pyrunfile("C:\Users\april\PycharmProjects\pythonProject2\main.py 'C:/Users/april/Desktop/PhD research/CODE/measure_in_vivo.ply'","v");
+            vol_mesh = pyrunfile("vol_measurement.py 'measure_in_vivo.ply'","v");
             vols(pass_num) = 10^6*abs(double(vol_mesh));
 
         end
