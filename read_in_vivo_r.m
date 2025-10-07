@@ -3,6 +3,7 @@ function [frames, poses_downsampled, bound_coords, m_pix, xoffset, yoffset, USto
 % DICOM file
 info = dicominfo(strcat(folder,us_name));
 
+% read info
 frames = info.NumberOfFrames;
 fr_images = info.CineRate;
 US_length = info.EffectiveDuration;
