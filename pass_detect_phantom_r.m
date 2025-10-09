@@ -76,7 +76,7 @@ for k = 1:(length(out_frames_2)-1)
         for fr = mid_pt:out_frames_2(k+1)
             coTemp = surface_recon_r(poses_downsampled, bound_coords, fr, xoffset, yoffset, UStoCam);
             cen = [mean(coTemp(:, 1)), mean(coTemp(:, 2)), mean(coTemp(:, 3))];
-            if (norm(mid_cen-cen) > 0.03)
+            if (norm(mid_cen-cen) > 0.05)
                 reject_frames(reject_i) = fr;
                 reject_i = reject_i + 1;
             end

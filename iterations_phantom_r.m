@@ -3,11 +3,11 @@
 
 % read in data
 % poses
-bag_name = "C:\Users\april\Desktop\PhD Research\Phantom experiment 12-20-24\phantom bags\camPoses_phantom_multipass_2024-12-20-14-17-27.bag";
+bag_name = "Phantom data\camPoses_phantom_multipass_2024-12-20-14-17-27.bag";
 % US
-us_file = "C:\Users\april\Desktop\PhD Research\Phantom experiment 12-20-24\OCKEAH80";
+us_file = "Phantom data\OCKEAH80";
 
-b = load('C:\Users\april\Desktop\PhD research\CODE\bc_phantom_scan1.mat');
+b = load('Phantom data\bc_phantom_scan1_updated.mat');
 bound_coords = b.bound_coords;
 
 [frames, times, poses, m_pix, xoffset, yoffset, UStoCam] = read_in_r('', bag_name, us_file, 'GE_LOGIQE9_curvilinearProbe');
@@ -20,14 +20,6 @@ end
 
 % pass detection
 passes = pass_detect_phantom_r(poses_downsampled,bound_coords, xoffset, yoffset, UStoCam);
-%passes = passes(1:17);
-
-passes_2 = [293 1038 1143 1296 1491 1614 1708 1918 2152 2358 2453 2629 2864 2971 3105 3258 3572 3698 3795 3865 NaN 4250 4538];
-passes_3 = [1, 382, 703, 1046, 1349, 1651, 1913, 2233, NaN, 2300, 2579, NaN, 2600, 2899, NaN, 2940, 3196, NaN, 3250, 3611];
-passes_5 = [179, 555, 940, 1255, 1708, 1959, 2125, NaN, 2390, 2592, NaN, 3014, 3258, NaN, 3403, 3577, 3735, 3799, NaN, 3930, 4106, 4237];
-
-%passes = passes(1:17);
-%passes = passes_2;
 
 %plot_skeleton_outline(poses_centered, bound_coords, passes(1):10:passes(8), xoffset, yoffset, UStoCam)
 
@@ -44,11 +36,11 @@ for i = 1:(length(passes)-1)
         coTemp = surface_recon_r(poses_downsampled, bound_coords, (passes(i)):(passes(i+1)), xoffset, yoffset, UStoCam);
         cen = [mean(coTemp(:, 1)), mean(coTemp(:, 2)), mean(coTemp(:, 3))];
         % put everybody at (0,0,0)
-        poses_centered(1:3,4,passes(i):(passes(i+1)-1)) = poses_centered(1:3,4,passes(i):(passes(i+1)-1)) - [cen(1) cen(2) cen(3)]';
+        poses_centered(1:3,4,passes(i):(passes(i+1))) = poses_downsampled(1:3,4,passes(i):(passes(i+1))) - [cen(1) cen(2) cen(3)]';
     end
 end
 
-%% poses centered based on first pass only
+%% poses centered based on first pass only - phantom scan 2 only
 
 poses_centered = poses_downsampled;
 
@@ -64,7 +56,7 @@ for i = 1:(length(passes)-1)
             cen = [mean(coTemp(:, 1)), mean(coTemp(:, 2)), mean(coTemp(:, 3))];
         end
         % put everybody at (0,0,0)
-        poses_centered(1:3,4,passes(i):(passes(i+1)-1)) = poses_centered(1:3,4,passes(i):(passes(i+1)-1)) - [cen(1) cen(2) cen(3)]';
+        poses_centered(1:3,4,passes(i):(passes(i+1))) = poses_downsampled(1:3,4,passes(i):(passes(i+1))) - [cen(1) cen(2) cen(3)]';
     end
 end
 
@@ -261,7 +253,7 @@ for c = 1:it
 
             % using Python meshlab to calc poisson surface and volume
             pcwrite(pc,'measure_this.ply')
-            vol_mesh = pyrunfile("C:\Users\april\PycharmProjects\pythonProject2\main.py 'C:/Users/april/Desktop/PhD research/_Paper aim 1/Code for release/measure_this.ply'","v");
+            vol_mesh = pyrunfile("vol_measurement.py 'measure_this.ply'","v");
             %disp(10^6*vol_mesh)
             vols(pass_num) = 10^6*abs(double(vol_mesh));
         end
