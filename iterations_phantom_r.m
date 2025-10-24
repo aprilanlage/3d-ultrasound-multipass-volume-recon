@@ -3,9 +3,9 @@
 
 % read in data
 % poses
-bag_name = "Phantom data\camPoses_phantom_multipass_2024-12-20-14-17-27.bag";
+bag_name = "Phantom data\camPoses_phantom_scan1";
 % US
-us_file = "Phantom data\OCKEAH80";
+us_file = "Phantom data\US_phantom_scan1";
 
 b = load('Phantom data\bc_phantom_scan1_updated.mat');
 bound_coords = b.bound_coords;

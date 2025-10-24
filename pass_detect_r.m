@@ -1,29 +1,30 @@
 function out_frames_4 = pass_detect_r(poses_downsampled, bound_coords, xoffset, yoffset, UStoCam)
 
 % uses x poses to finds peaks to return changes in direction
-% works well for phantom scans
-% may need to adjust some limits
-% not sure about in vivo
-
-x_poses = squeeze(poses_downsampled(1,4,:));
-y_poses = squeeze(poses_downsampled(2,4,:));
-z_poses = squeeze(poses_downsampled(3,4,:));
 
 fra_downsampled = (1:length(poses_downsampled));
 
-[p, l] = findpeaks((abs(x_poses) .* abs(y_poses)),"MinPeakProminence",0.0005);
-%findpeaks(-x_poses,"MinPeakProminence",0.01)
-[pn, ln] = findpeaks(-(abs(x_poses) .* abs(y_poses)),"MinPeakProminence",0.0005);
+% calc xyz coord for each frame
+seg_coords = zeros(length(poses_downsampled),3);
+for f = 1:2:length(bound_coords)
+    v = mean(bound_coords{f,1});
+    u = mean(bound_coords{f,2});
+    xyz = poses_downsampled(:,:,f) * UStoCam * [u-xoffset; v-yoffset; 1];
+    xyz = xyz';
+    seg_coords(f,:) = xyz;
+end
+seg_coords(seg_coords==0)=nan;  % replace 0 elements with NaN
+scatter(fra_downsampled,seg_coords(:,1))
 
+smoothed = smoothdata(seg_coords(:,1));
+[p, l] = findpeaks(smoothed,"MinPeakProminence",0.001);
+[pn, ln] = findpeaks(-smoothed,"MinPeakProminence",0.001);
 out_frames = sort(cat(1,l,ln));
 
-% optional plotting
-%scatter(fra_downsampled,x_poses)
-%scatter(fra_downsampled,(abs(x_poses) .* abs(y_poses)));hold on
-%scatter(fra_downsampled(ln),-pn,'ko','MarkerFaceColor','r');
-%scatter(fra_downsampled(l),p,'ko','MarkerFaceColor','g');
-
-%plot_skeleton_outline(poses_downsampled, bound_coords, 2930:3038, xoffset, yoffset, UStoCam)
+% optional plot
+scatter(fra_downsampled,smoothed); hold on
+scatter(fra_downsampled(l),p,'ko','MarkerFaceColor','g');
+scatter(fra_downsampled(ln),-pn,'ko','MarkerFaceColor','r');
 
 % record segmented frames
 seg_slices = zeros(length(bound_coords),1);
@@ -33,6 +34,7 @@ for o  = 1:length(bound_coords)
     end
 end
 
+% could add data cleaning checks
 % check that passes are a min number of poses
 out_frames_2 = out_frames;
 for t = 1:(length(out_frames)-1)
@@ -83,7 +85,7 @@ for k = 1:(length(out_frames_2)-1)
         for fr = mid_pt:out_frames_2(k+1)
             coTemp = surface_recon(poses_downsampled, bound_coords, fr, xoffset, yoffset, UStoCam);
             cen = [mean(coTemp(:, 1)), mean(coTemp(:, 2)), mean(coTemp(:, 3))];
-            if (norm(mid_cen-cen) > 0.03)
+            if (norm(mid_cen-cen) > 0.05)
                 reject_frames(reject_i) = fr;
                 reject_i = reject_i + 1;
             end
@@ -103,18 +105,23 @@ for k = 1:(length(out_frames_2)-1)
             new_max = out_frames_2(k+1);
         end
     
-        out_frames_3(fr_index) = new_min;
-        out_frames_3(fr_index + 1) = new_max;
-        out_frames_3(fr_index + 2) = NaN;
-        fr_index = fr_index + 3;
+        if (new_min < new_max)
+            out_frames_3(fr_index) = new_min;
+            out_frames_3(fr_index + 1) = new_max;
+            out_frames_3(fr_index + 2) = NaN;
+            fr_index = fr_index + 3;
+        else
+            continue
+        end
     end
 end
 
 out_frames_3 = out_frames_3(1:fr_index-2);
 
+
 out_frames_4 = zeros(length(out_frames_3),1);
 ind_4 = 1;
-% check volumes of proposed passes are within range
+% check volumes of proposed passes are within bounding box
 for g = 1:(length(out_frames_3)-1)
     if isnan(out_frames_3(g+1)) || isnan(out_frames_3(g))
         continue
@@ -127,10 +134,10 @@ for g = 1:(length(out_frames_3)-1)
         disp(10^6*v_convexhull)
     
         % check if min volume
-        if 10^6*v_convexhull < 100
+        if 10^6*v_convexhull < 80
            disp('Volume too small')
     
-        elseif 10^6*v_convexhull > 250
+        elseif 10^6*v_convexhull > 350
            disp('Volume too large')
           
         else
@@ -143,3 +150,11 @@ for g = 1:(length(out_frames_3)-1)
 end
 
 out_frames_4 = out_frames_4(1:ind_4-2);
+
+% count how many frames not included
+count = 0;
+for p = 1:3:(length(out_frames_4)-1)
+    count = count + out_frames_4(p+1) - out_frames_4(p);
+end
+
+percent_reject = 100 - (100*count/length(poses_downsampled))
