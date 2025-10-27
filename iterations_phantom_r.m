@@ -3,11 +3,11 @@
 
 % read in data
 % poses
-bag_name = "Phantom data\camPoses_phantom_scan1";
+bag_name = "Phantom_data\camPoses_phantom_scan1";
 % US
-us_file = "Phantom data\US_phantom_scan1";
+us_file = "Phantom_data\US_phantom_scan1";
 
-b = load('Phantom data\bc_phantom_scan1_updated.mat');
+b = load('Phantom_data\bc_phantom_scan1_updated.mat');
 bound_coords = b.bound_coords;
 
 [frames, times, poses, m_pix, xoffset, yoffset, UStoCam] = read_in_r('', bag_name, us_file, 'GE_LOGIQE9_curvilinearProbe');

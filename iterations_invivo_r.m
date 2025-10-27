@@ -3,12 +3,12 @@
 
 % read in data
 % poses
-bag_name = "C:\Users\april\Desktop\In vivo kidney study 2025\PartID_34\Camera data\camPoses_partID_34_2025-03-20-12-39-05.bag";
+bag_name = "In_vivo_example\camPoses_partID_34_2025-03-20-12-39-05.bag";
 
 % US
-us_file = "C:\Users\april\Desktop\In vivo kidney study 2025\PartID_34\US_scans\P3KDJDGE";
+us_file = "In_vivo_example\P3KDJDGE";
 
-b = load('C:\Users\april\Desktop\PhD research\CODE\bc_ID34_scan2.mat');
+b = load('In_vivo_example\bc_ID34_scan2.mat');
 bound_coords = b.bound_coords;
 [frames, times, poses, m_pix, xoffset, yoffset, UStoCam] = read_in_r('', bag_name, us_file, 'GE_LOGIQE9_curvilinearProbe');
 
