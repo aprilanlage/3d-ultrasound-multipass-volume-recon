@@ -1,16 +1,16 @@
-function avg_thick = calc_thickness_r(in)
+function avg_thick = calc_thickness_r(vox_grid)
 
 % this function calculates the average thickness of a closed ring
 % takes in a voxel grid, outputs average thickness in pixels 
 
 total = 0;
 sum = 0;
-s = size(in);
+s = size(vox_grid);
 
 % first dimension of voxel grid
 for l = 1:s(1)
     % make binary image
-    im = logical(squeeze(in(l,:,:)));
+    im = logical(squeeze(vox_grid(l,:,:)));
     stats = regionprops(im);
 
     % if a ring is detected
@@ -41,7 +41,7 @@ end
 
 % second dimension of voxel grid
 for m = 1:s(2)
-    im = logical(squeeze(in(:,m,:)));
+    im = logical(squeeze(vox_grid(:,m,:)));
     stats = regionprops(im);
 
     if(length(stats) == 1)
@@ -68,7 +68,7 @@ end
 
 % third dimension of voxel grid 
 for n = 1:s(3)
-    im = logical(squeeze(in(:,:,n)));
+    im = logical(squeeze(vox_grid(:,:,n)));
     stats = regionprops(im);
 
     if(length(stats) == 1)

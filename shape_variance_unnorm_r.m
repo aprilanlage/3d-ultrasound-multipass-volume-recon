@@ -1,9 +1,10 @@
 function [new_voxels] = shape_variance_unnorm_r(old_voxel_grid, cloud_to_add, step_size, start_x,start_y,start_z)
+
 % for adding point cloud points to a voxel grid 
 
 vox_var = old_voxel_grid;
 
-% downsample to same density
+% downsample point cloud to same density as voxel grid
 pc_temp_down = pcdownsample(cloud_to_add,'gridAverage',step_size);
 
 for pt = 1:pc_temp_down.Count
@@ -17,10 +18,11 @@ for pt = 1:pc_temp_down.Count
     if nnz(pc_temp_down.Intensity) > 0
         vox_var(x_index,y_index,z_index) = vox_var(x_index,y_index,z_index) + pc_temp_down.Intensity(pt);
     else
+        % using 15 for intensity 
         vox_var(x_index,y_index,z_index) = vox_var(x_index,y_index,z_index) + 15;
     end
 
-    % for including neighborhood blur
+    % for including neighborhood blur - using 5 for neighborhood
     for x_wiggle = (rounded_pt(1)-step_size):step_size:(rounded_pt(1)+step_size)
         for y_wiggle = (rounded_pt(2)-step_size):step_size:(rounded_pt(2)+step_size)
             for z_wiggle = (rounded_pt(3)-step_size):step_size:(rounded_pt(3)+step_size)
@@ -32,7 +34,6 @@ for pt = 1:pc_temp_down.Count
         end
     end
 end
-
 
 new_voxels = vox_var;
 end

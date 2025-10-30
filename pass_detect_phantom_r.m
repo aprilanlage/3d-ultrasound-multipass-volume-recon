@@ -1,10 +1,13 @@
 function out_frames_4 = pass_detect_phantom_r(poses_downsampled, bound_coords, xoffset, yoffset, UStoCam)
 
+% phantom scans
 % uses x poses to finds peaks to return changes in direction
-% works well for phantom scans
+% passes output in the format: [PASS_1_BEGINNING PASS_1_END NaN
+% PASS_2_BEGINNING PASS_2_END NaN ...]
 
 % calc xyz coord for each frame
 seg_coords = zeros(length(poses_downsampled),3);
+% assumes every other frame is segmented
 for f = 1:2:length(bound_coords)
     v = mean(bound_coords{f,1});
     u = mean(bound_coords{f,2});
@@ -12,13 +15,15 @@ for f = 1:2:length(bound_coords)
     xyz = xyz';
     seg_coords(f,:) = xyz;
 end
-seg_coords(seg_coords==0)=nan;  % replace 0 elements with NaN
+seg_coords(seg_coords==0) = nan;  % replace 0 elements with NaN
 %scatter(fra_downsampled,seg_coords(:,1))
 
+% smooth the data to avoid false peaks from noise
 smoothed = smoothdata(seg_coords(:,1));
 
-% find peaks based on minimum prominence 
+% find maximum peaks based on minimum prominence 
 [p, l] = findpeaks(smoothed,"MinPeakProminence",0.001);
+% invert to find the minimums
 [pn, ln] = findpeaks(-smoothed,"MinPeakProminence",0.001);
 out_frames = sort(cat(1,l,ln));
 
@@ -145,4 +150,5 @@ for g = 1:(length(out_frames_3)-1)
     end
 end
 
+% out_frames_4 includes all checks applied
 out_frames_4 = out_frames_4(1:ind_4-2);

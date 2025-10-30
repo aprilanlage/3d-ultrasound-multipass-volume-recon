@@ -8,6 +8,8 @@ kidney_points = kidney_pt_cloud.Location;
 
 %pcshow(kidney_pt_cloud)
 
+% first component
+% calculate existing long axis
 coeffs = pca(kidney_points);
 pcs = kidney_points * coeffs;
 
@@ -30,6 +32,7 @@ R_x = eye(3) + sin(theta_x)*K_x + (1-cos(theta_x))*K_x*K_x;
 
 t_1 = rigidtform3d(R_x, [0 0 0]);
 
+% transform input point cloud longest axis 
 p_1 = pctransform(kidney_pt_cloud,t_1);
 %pcshow(p)
 
@@ -55,6 +58,7 @@ R_y = eye(3) + sin(theta_y)*K_y + (1-cos(theta_y))*K_y*K_y;
 
 t_2 = rigidtform3d(R_y, [0 0 0]);
 
+% transform previous point cloud to second axis
 p_2 = pctransform(p_1,t_2);
 
 % place center of kidney at zero
@@ -67,5 +71,6 @@ delta_x = center_x - x_kidney;
 delta_y = center_y - y_kidney;
 delta_z = center_z - z_kidney;
 
+% translate kidney
 tform = rigidtform3d([0 0 0],[delta_x delta_y delta_z]);
 new_pc = pctransform(p_2,tform);

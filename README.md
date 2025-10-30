@@ -1,10 +1,18 @@
 3D Ultrasound Multipass Volume Reconstruction
+
+
 October 2025
+
+
 April Anlage
 
 
 
 Submitted to IEEE TMBE July 2025, revised October 2025.
+
+
+
+Developed in MATLAB 2024b, with PyMeshLab running on Python 3.9
 
 
 
@@ -26,7 +34,7 @@ Each example includes 3 files:
 
 
 
-The main algorithm runs in iterations\_phantom\_r.m These file names/paths need to be edited in this file.
+The main algorithm runs in iterations\_phantom\_r.m These file names/paths need to be edited in this file. The file has multiple sections that need to be run. 
 
 The rest are helper functions.
 

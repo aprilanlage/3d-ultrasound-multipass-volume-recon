@@ -1,6 +1,9 @@
 function avg_dist = avg_min_distance_r(pc1, pc2)
 
-% density will downsample sampled points
+% to calculate average minimum distance (AMD) shape metric 
+% input two point clouds to measure shape similarity between them
+
+% density will down sample sampled points
 density = 5;
 
 num_pts = pc1.Count;

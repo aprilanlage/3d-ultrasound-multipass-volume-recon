@@ -1,6 +1,10 @@
-function [frames, times, poses, m_pix, xoffset, yoffset, UStoCam] = read_in_r(folder, bag_name, us_name, probe_type)
+function [frames, times, poses, m_pix, xoffset, yoffset, UStoCam] = read_in_phantom_r(folder, bag_name, us_name, probe_type)
 
-% DICOM file
+% phantom scans only
+% this function takes in file paths and probe type
+% unwraps data and readies it for processing
+
+% DICOM ultrasound file
 info = dicominfo(strcat(folder,us_name));
 
 frames = info.NumberOfFrames; % total number of frames
@@ -45,6 +49,10 @@ end
 % units = cm/pixel, then convert to m/pixel
 m_pix = info.SequenceOfUltrasoundRegions.Item_1.PhysicalDeltaX/100.0;
 
+% rigid transformation between camera and ultrasound iamging plane
+% depends on probe
+% assumes 3D printed attachment is used
+% re-calibration needed infrequently
 switch probe_type
     case 'GE_LOGIQE9_curvilinearProbe'
         UStoCam = [0, 0, -39.8/1000;...
@@ -58,6 +66,7 @@ switch probe_type
             0, 0, 1];
 end
 
+% down sampling between poses and images
 times = round(1:fr_poses/fr_images:n);
 
 end

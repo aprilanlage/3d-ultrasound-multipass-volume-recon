@@ -1,6 +1,8 @@
 function plot_skeleton_outline_r(poses_downsampled, bound_coords, frames, xoffset, yoffset, UStoCam)
 
 % plots segmentation outline of specified frames 
+% takes in poses and segmentation coordinates 
+% specify frames for chosen slices to plot
 
 coTemp = zeros(1000000,3); 
 ind = 0;

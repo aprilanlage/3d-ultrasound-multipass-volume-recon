@@ -1,5 +1,8 @@
 function out_frames_4 = pass_detect_r(poses_downsampled, bound_coords, xoffset, yoffset, UStoCam)
 
+% for in vivo scans
+% passes output in the format: [PASS_1_BEGINNING PASS_1_END NaN
+% PASS_2_BEGINNING PASS_2_END NaN ...]
 % uses x poses to finds peaks to return changes in direction
 
 fra_downsampled = (1:length(poses_downsampled));
@@ -13,18 +16,21 @@ for f = 1:2:length(bound_coords)
     xyz = xyz';
     seg_coords(f,:) = xyz;
 end
-seg_coords(seg_coords==0)=nan;  % replace 0 elements with NaN
+seg_coords(seg_coords==0) = nan;  % replace 0 elements with NaN
 scatter(fra_downsampled,seg_coords(:,1))
 
+% smooth the data to avoid false peaks from noise
 smoothed = smoothdata(seg_coords(:,1));
+% find peak maximums using min peak prominence
 [p, l] = findpeaks(smoothed,"MinPeakProminence",0.001);
+% invert to find the minimums
 [pn, ln] = findpeaks(-smoothed,"MinPeakProminence",0.001);
 out_frames = sort(cat(1,l,ln));
 
 % optional plot
-scatter(fra_downsampled,smoothed); hold on
-scatter(fra_downsampled(l),p,'ko','MarkerFaceColor','g');
-scatter(fra_downsampled(ln),-pn,'ko','MarkerFaceColor','r');
+%scatter(fra_downsampled,smoothed); hold on
+%scatter(fra_downsampled(l),p,'ko','MarkerFaceColor','g');
+%scatter(fra_downsampled(ln),-pn,'ko','MarkerFaceColor','r');
 
 % record segmented frames
 seg_slices = zeros(length(bound_coords),1);
@@ -34,7 +40,6 @@ for o  = 1:length(bound_coords)
     end
 end
 
-% could add data cleaning checks
 % check that passes are a min number of poses
 out_frames_2 = out_frames;
 for t = 1:(length(out_frames)-1)

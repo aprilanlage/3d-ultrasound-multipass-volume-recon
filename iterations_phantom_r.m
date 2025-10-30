@@ -1,16 +1,22 @@
-%% var grid method with iterations
+%% Main code - iterations of algorithm
 % phantom
+% multiple sections need to be run
 
 % read in data
 % poses
+% CHANGE THIS FILE PATH
 bag_name = "Phantom_data\camPoses_phantom_scan1";
+
 % US
+% CHANGE THIS FILE PATH
 us_file = "Phantom_data\US_phantom_scan1";
 
+% segmentations
+% CHANGE THIS FILE PATH
 b = load('Phantom_data\bc_phantom_scan1_updated.mat');
 bound_coords = b.bound_coords;
 
-[frames, times, poses, m_pix, xoffset, yoffset, UStoCam] = read_in_r('', bag_name, us_file, 'GE_LOGIQE9_curvilinearProbe');
+[frames, times, poses, m_pix, xoffset, yoffset, UStoCam] = read_in_phantom_r('', bag_name, us_file, 'GE_LOGIQE9_curvilinearProbe');
 
 % downsample poses
 poses_downsampled = zeros(3,4,frames);
@@ -19,11 +25,12 @@ for slice = 1:(frames-120)
 end
 
 % pass detection
-passes = pass_detect_phantom_r(poses_downsampled,bound_coords, xoffset, yoffset, UStoCam);
+passes = pass_detect_phantom_r(poses_downsampled, bound_coords, xoffset, yoffset, UStoCam);
 
-%plot_skeleton_outline(poses_centered, bound_coords, passes(1):10:passes(8), xoffset, yoffset, UStoCam)
+% optional plotting to visualize segmentations
+%plot_skeleton_outline(poses_downsampled, bound_coords, passes(1):10:passes(8), xoffset, yoffset, UStoCam)
 
-%% pass alignment
+%% rough initial pass alignment - phantom scans 1, 3, 4, 5
 % initial align centers of segmentations
 poses_centered = poses_downsampled;
 
@@ -39,6 +46,9 @@ for i = 1:(length(passes)-1)
         poses_centered(1:3,4,passes(i):(passes(i+1))) = poses_downsampled(1:3,4,passes(i):(passes(i+1))) - [cen(1) cen(2) cen(3)]';
     end
 end
+
+% optional visualization
+%plot_skeleton_outline(poses_centered, bound_coords, (passes(1)):(passes(2)), xoffset, yoffset, UStoCam)
 
 %% poses centered based on first pass only - phantom scan 2 only
 
@@ -60,20 +70,22 @@ for i = 1:(length(passes)-1)
     end
 end
 
-%% align shape model
+% optional visualization
+%plot_skeleton_outline(poses_centered, bound_coords, (passes(1)):(passes(2)), xoffset, yoffset, UStoCam)
+
+%% align shape model for shape metric evaluation later
 poses = poses_centered;
 kid_model = pcread('scaled_mean_pc.ply');
 kidney_points = kid_model.Location;
 kidney_points_small = kidney_points/1000;
 kid_model_small = pointCloud(kidney_points_small);
+
 % using first few passes as model
 coTemp = surface_recon_r(poses, bound_coords, passes(1):passes(2), xoffset, yoffset, UStoCam);
 pass_temp = pointCloud(coTemp(:,1:3));
 %pcshowpair(kid_model_small,pass_temp)
 
 % move shape model to align with kidney
-% hard coded axes at the moment
-
 % for phantom scans 1, 2, and 4
 aligned_kidney = align_move_kidney_r(kid_model_small, [1 0 0], [0 0 -1], 0,0,0);
 
@@ -85,15 +97,20 @@ aligned_kidney = align_move_kidney_r(kid_model_small, [1 0 0], [0 0 -1], 0,0,0);
 
 best_t = pcregistericp(aligned_kidney,pass_temp);
 kidney_reg = pctransform(aligned_kidney,best_t);
+
+% visual check
 pcshowpair(kidney_reg,pass_temp)
 
 %% method for volume
 num_passes = length(passes);
 vols = zeros(num_passes,1);
 min_dist = zeros(num_passes,1);
+% step size of voxel grid can be changed, 2mm works best with provided data
 step_size = 0.002;
 
 % iterate
+% this is an upper limit for number of iterations (most scans converge much
+% faster)
 it = 100;
 vol_avgs = zeros(1,it);
 dist_avgs = zeros(1,it);
@@ -119,9 +136,11 @@ for c = 1:it
                 % use center of pass segmentations to register
 
                 pass_temp = pointCloud(coTemp(:,1:3));
+
                 % pc is calculated point cloud from previous round
                 best_t = pcregistericp(pass_temp,pc_cen);
                 poses_to_change = poses_centered_icp(:,:,passes(i):(passes(i+1)-1));
+
                 for v = 1:(passes(i+1)-passes(i))
                     poses_to_change(4,:,v) = [0 0 0 1];
                     poses_to_change(:,:,v) = best_t.A*poses_to_change(:,:,v);
@@ -133,16 +152,19 @@ for c = 1:it
     end
 
     % kidney with poses centered via poses
+    % these extents are hard coded but work for all provided data
     x_extent = -0.1:step_size:0.12;
     y_extent = -0.08:step_size:0.07;
     z_extent = -0.1:step_size:0.1;
     old_voxel_grid = zeros(length(x_extent),length(y_extent),length(z_extent));
 
+    % add first pass to empty voxel grid
     coTemp = surface_recon_r(poses, bound_coords, passes(1):passes(2), xoffset, yoffset, UStoCam);
     pass_temp = pointCloud(coTemp(:,1:3),Intensity=coTemp(:,5));
     [new_voxels] = shape_variance_unnorm_r(old_voxel_grid, pass_temp, step_size, x_extent(1), y_extent(1), z_extent(1));
 
     for pass_num = 2:(num_passes-1)
+
         % flag to check for breathing spots
         if isnan(passes(pass_num+1)) || isnan(passes(pass_num))
             continue
@@ -156,7 +178,7 @@ for c = 1:it
             new_voxels_thres = zeros(size(new_voxels));
             s = size(new_voxels);
             peaks = zeros(s);
-            peaks_new = zeros(s);
+            peaks_two_erode = zeros(s);
         
             thres_factor = 0.7;
 
@@ -168,15 +190,20 @@ for c = 1:it
                 n = nnz(im);
 
                 if n > 0
+                    % flatten image and order from brightest to darkest
+                    % pixel values
                     im_long = reshape(im,[],1);
                     im_sort = sort(im_long,"descend");
+                    
+                    % find the pixels that correspond to above the threshold
                     threshold = im_sort(round(thres_factor*n));
-
                     k = im<threshold;
+                    % make the rest of the pixels 0
                     im_new(k) = 0;
 
                     new_voxels_thres(select,:,:) = im_new;
                 else
+                    % if slice is blank, skip
                     new_voxels_thres(select,:,:) = 0;
                 end
             end
@@ -189,73 +216,80 @@ for c = 1:it
                 for j = 1:s(2)
                     for l = 1:s(3)
                         if erodedvol(i,j,l) > 0
-                        %if new_voxels_thres(i,j,l) > 0
+                            % convert to a binary volume
                             peaks(i,j,l) = 1;
                         end
                     end
                 end
             end
 
+            % optional visualization
             %volumeViewer(peaks)
 
             % calculate average ring thickness
             % if too thick, erode again
             th = calc_thickness_r(peaks);
             se_vol = strel('sphere',1);
+
             if th > 3
                 %disp(th)
                 erodedvol_2 = imerode(erodedvol, se_vol);
-                peaks_new = zeros(s);
+                peaks_two_erode = zeros(s);
                 for i = 1:s(1)
                     for j = 1:s(2)
                         for l = 1:s(3)
                             if erodedvol_2(i,j,l) > 0
-                                peaks_new(i,j,l) = 1;
+                                peaks_two_erode(i,j,l) = 1;
                             end
                         end
                     end
                 end
-                th = calc_thickness_r(peaks_new);
+                th = calc_thickness_r(peaks_two_erode);
+
                 if th < 2
-                    % use previous peaks, with one erode
+                    % if too thin, use previous peaks, with one erode
                     peaks = peaks;
+
                 elseif th > 5
                     % erode again if still thick
                     %disp(th)
                     erodedvol_3 = imerode(erodedvol_2, se_vol);
-                    peaks_new_new = zeros(s);
+                    peaks_three_erode = zeros(s);
                     for i = 1:s(1)
                         for j = 1:s(2)
                             for l = 1:s(3)
                                 if erodedvol_3(i,j,l) > 0
                                     %if new_voxels_thres(i,j,l) > 0
-                                    peaks_new_new(i,j,l) = 1;
+                                    peaks_three_erode(i,j,l) = 1;
                                 end
                             end
                         end
                     end
-                    peaks = peaks_new_new;
+                    peaks = peaks_three_erode;
+
                 else
-                    % use new peaks, with two erode
-                    peaks = peaks_new;
+                    % use peaks with two erode
+                    peaks = peaks_two_erode;
                 end
             end
-
+            
+            % calculate metrics 
+            % convert to point cloud
             [pc, v_convexhull] = find_pc_from_3d_r(peaks, step_size, x_extent(1), y_extent(1), z_extent(1));
             
-            % need to re-register kidney every time
+            % need to re-register shape model kidney every time
             best_t = pcregistericp(kidney_reg,pc);
             kidney_reg = pctransform(kidney_reg,best_t);
 
-            d = avg_min_distance_r(pc,kidney_reg); % will need to rescale and rotate kid_model
-            %[k,v_convexhull_new] = convhull(pc.Location(:,1),pc.Location(:,2),pc.Location(:,3));
+            %  find AMD
+            d = avg_min_distance_r(pc,kidney_reg);
             min_dist(pass_num) = d;
 
             % using Python meshlab to calc poisson surface and volume
             pcwrite(pc,'measure_this.ply')
             vol_mesh = pyrunfile("vol_measurement.py 'measure_this.ply'","v");
-            %disp(10^6*vol_mesh)
             vols(pass_num) = 10^6*abs(double(vol_mesh));
+
         end
     end
 
@@ -266,13 +300,16 @@ for c = 1:it
     disp([vol_avgs(c) dist_avgs(c)])
 
     % stopping criteria
+    % currently set to 3 volumes within 10mL in a row
     if (c>2) && (abs(vol_avgs(c) - vol_avgs(c - 1)) < 10) && (abs(vol_avgs(c - 1) - vol_avgs(c - 2)) < 10)
+        % calculate final AMD using Poisson surface 
         [mesh] = pc2surfacemesh(pc,"Poisson");
         pc = mesh2pc(mesh);
         d = avg_min_distance_r(pc,kidney_reg);
         hd = hausdorff_dist_r(pc, kidney_reg);
-        disp([c mean(vol_avgs((c-2):c)) 1000*d])
-        disp([1000*hd])
+
+        % display stats
+        disp([c mean(vol_avgs((c-2):c)) 1000*d 1000*hd])
         break
     else
         continue
